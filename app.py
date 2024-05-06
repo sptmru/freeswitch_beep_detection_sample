@@ -130,11 +130,19 @@ def originate_call_to_sip_uri(esl_connection, sip_uri):
     return originate_call(esl_connection, originate_format)
 
 
-def originate_call_to_extension(esl_connection, sip_uri):
+def originate_call_to_extension(esl_connection, extension):
     """
     Initiates an outbound call from FreeSWITCH to a local extension.
     """
-    originate_format = f"user/{sip_uri}"
+    originate_format = f"sofia/internal/{extension}"
+    return originate_call(esl_connection, originate_format)
+
+
+def originate_call_to_dialplan_section(esl_connection, expression):
+    """
+    Initiates an outbound call from FreeSWITCH to a dialplan section.
+    """
+    originate_format = f"loopback/{expression}"
     return originate_call(esl_connection, originate_format)
 
 
@@ -170,6 +178,8 @@ def main():
 
     originate_call_to_sip_uri(esl_conn, config.get('SIP_ENDPOINT'))
     # originate_call_to_extension(esl_conn, config.get('EXTENSION_TO_CALL'))
+    # originate_call_to_dialplan_section(
+    #    esl_conn, config.get('DIALPLAN_EXPRESSIONs'))
 
     esl_conn.events("plain", "ALL")
     while True:
