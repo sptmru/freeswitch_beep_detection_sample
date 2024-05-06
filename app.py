@@ -88,6 +88,14 @@ def esl_event_handler(event):
                 logger.debug("Received event: %s", event_name)
 
 
+def avmd_start(esl_connection, uuid):
+    """
+    Start beep detection on channel using mod_avmd.
+    """
+    esl_connection.api(f"avmd {uuid} start")
+    logger.info("AVMD started on call %s", uuid)
+
+
 def originate_call(esl_connection, leg):
     """
     Initiates an outbound call from FreeSWITCH to a specified extension.
@@ -107,6 +115,7 @@ def originate_call(esl_connection, leg):
     if response:
         uuid = response.getBody().split()[1]
         logger.info('Call originated: %s', uuid)
+        avmd_start(esl_connection, uuid)
         return uuid
 
     logger.error('Could not originate call')
