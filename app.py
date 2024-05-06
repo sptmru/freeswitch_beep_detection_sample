@@ -179,7 +179,7 @@ def main():
     originate_call_to_sip_uri(esl_conn, config.get('SIP_ENDPOINT'))
     # originate_call_to_extension(esl_conn, config.get('EXTENSION_TO_CALL'))
     # originate_call_to_dialplan_section(
-    #    esl_conn, config.get('DIALPLAN_EXPRESSIONs'))
+    #    esl_conn, config.get('DIALPLAN_EXPRESSION'))
 
     esl_conn.events("plain", "ALL")
     while True:
