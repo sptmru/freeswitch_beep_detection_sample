@@ -58,7 +58,37 @@ def connect_to_freeswitch():
     return None
 
 
-def originate_call(esl_connection, sip_endpoint):
+def esl_event_handler(event):
+    """
+    Handle FreeSWITCH ESL events.
+    """
+    if not event:
+        return
+
+    event_name = event.getHeader("Event-Name")
+    match event_name:
+        case "CHANNEL_ANSWER":
+            uuid = event.getHeader("Unique-ID")
+            destination_number = event.getHeader("Caller-Destination-Number")
+            if destination_number == config.get('NUMBER_TO_DIAL'):
+                logger.info("Call %s answered", uuid)
+        case "CUSTOM":
+            event_subclass = event.getHeader("Event-Subclass")
+            match event_subclass:
+                case "avmd::beep":
+                    uuid = event.getHeader("Unique-ID")
+                    logger.info("Beep detected on call %s", uuid)
+                case "avmd::start":
+                    uuid = event.getHeader("Unique-ID")
+                    logger.info("AVMD started on call %s", uuid)
+                case _:
+                    logger.info("Custom event: %s", event_subclass)
+        case _:
+            if event_name != "SERVER_DISCONNECTED":
+                logger.debug("Received event: %s", event_name)
+
+
+def originate_call(esl_connection, leg):
     """
     Initiates an outbound call from FreeSWITCH to a specified extension.
 
@@ -67,15 +97,14 @@ def originate_call(esl_connection, sip_endpoint):
 
     Args:
         esl_connection (ESLconnection): An existing connection object to the FreeSWITCH server.
-        sip_endpoint (str): The SIP endpoint to call.
+        leg (str): formatted extension.
 
     Returns:
         str or None: The UUID of the call if successfully originated, otherwise None.
     """
     response = esl_connection.api(
-        "originate", f"sofia/external/{sip_endpoint} &park()")
+        "originate", f"{leg} &park()")
     if response:
-        # uuid = response.getBody().decode().split(' ')[1]
         uuid = response.getBody().split()[1]
         logger.info('Call originated: %s', uuid)
         return uuid
@@ -84,32 +113,20 @@ def originate_call(esl_connection, sip_endpoint):
     return None
 
 
-def originate_call_to_extension(esl_connection, extension):
+def originate_call_to_sip_uri(esl_connection, sip_uri):
     """
-    Initiates an outbound call from FreeSWITCH to a specified extension.
-
-    This method uses an existing ESLconnection object to originate an outbound
-    call to the specified extension on the FreeSWITCH server.
-
-    Args:
-        esl_connection (ESLconnection): An existing connection object to the FreeSWITCH server.
-        extension (str): The SIP extension to call.
-
-    Returns:
-        str or None: The UUID of the call if successfully originated, otherwise None.
+    Initiates an outbound call from FreeSWITCH to a specified SIP URI.
     """
-    # response = esl_connection.api(
-    #    f"originate {{ignore_early_media=true}}user/{extension} &park()")
-    response = esl_connection.api(
-        "originate", f"user/1010 {extension}")
-    if response:
-        # uuid = response.getBody().decode().split(' ')[1]
-        uuid = response.getBody().split()[1]
-        logger.info('Call originated: %s', uuid)
-        return uuid
+    originate_format = f"sofia/external/{sip_uri}"
+    return originate_call(esl_connection, originate_format)
 
-    logger.error('Could not originate call')
-    return None
+
+def originate_call_to_extension(esl_connection, sip_uri):
+    """
+    Initiates an outbound call from FreeSWITCH to a local extension.
+    """
+    originate_format = f"user/{sip_uri}"
+    return originate_call(esl_connection, originate_format)
 
 
 def play_beep(esl_connection, uuid):
@@ -142,32 +159,12 @@ def main():
         logger.error('Exiting...')
         sys.exit(1)
 
+    originate_call_to_sip_uri(esl_conn, config.get('SIP_ENDPOINT'))
+
     esl_conn.events("plain", "ALL")
-
-    # uuid = originate_call(esl_conn, config.get('SIP_ENDPOINT'))
-    uuid = originate_call_to_extension(esl_conn, '74344')
-
     while True:
         event = esl_conn.recvEvent()
-        if event:
-            event_name = event.getHeader("Event-Name")
-            logger.info("Event received: %s", event_name)
-            logger.debug("Event data: %s", event.serialize())
-            uuid = event.getHeader("Unique-ID")
-            if event_name == "CHANNEL_ANSWER":
-                logger.info("Call answered: %s", uuid)
-                esl_conn.api(f"avmd {uuid} start")
-                logger.info("Beep detection started: %s", uuid)
-            if event_name == "CUSTOM":
-                event_subclass = event.getHeader("Event-Subclass")
-                if event_subclass.startswith("avmd"):
-                    if event_subclass == "avmd::beep":
-                        logger.info("Beep detected: %s", uuid)
-                    else:
-                        logger.info("Custom AVMD event: %s", event_subclass)
-                        if event_subclass == "avmd::start":
-                            logger.info("Got avmd::start event: %s", uuid)
-                            # play_beep(esl_conn, uuid)
+        esl_event_handler(event)
 
 
 if __name__ == "__main__":
