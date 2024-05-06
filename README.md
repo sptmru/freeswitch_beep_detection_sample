@@ -1,23 +1,17 @@
-# FreeSWITCH mod_audio_socket PoC
+# FreeSWITCH mod_avmd beep detection sample
 
 ## Description
 
-This is a simple Python ESL script which initiates a call to a SIP extension and bridges that to a WebSocket endpoint using [mod_audio_socket](https://github.com/amigniter/mod_audio_stream).
-
-## Prerequisites
-
-You'll need a FreeSWITCH server with configured ESL. Also, you'll need to install mod_audio_socket module using [this instruction](https://github.com/amigniter/mod_audio_stream/blob/main/README.md).
+This is a simple Python ESL script which initiates a call to a SIP endpoint and tries to detect beep with `mod_avmd`.
 
 ## Usage
 
-To run Vosk Websocket server, you can use Docker Compose: `docker compose up -d vosk-server`.
+Default configuration values are ready to use — you will only need to update `SIP_ENDPOINT` variable in `docker-compose.yml`. Then  you can just start everything using Docker Compose: `docker compose up -d --build`. Once it's started, you can authorize on the FreeSWITCH server with any SIP client. Login credentials would be:
 
-You'll also need to install Python dependencies: `pip install -r requirements.txt` (and you will probably want to create virtualenv before that).
+- SIP server: `localhost`
+- Username: anything in range from 1000 to 1019
+- Password: `extensionpassword` (could be changed in `docker-compose.yml`, variable `EXTENSION_PASSWORD`, service `freeswitch`, section `environment`)
 
-After that, create `.env` file (you can use `.env.example` as an example) and update parameters you want to change. You would definitely want to update `SIP_EXTENSION` to your SIP extension number, `WS_ENDPOINT` to your WebSocket endpoint (Vosk endpoint is `ws://localhost:2700` if you run it locally with Docker Compose), and, of course, FreeSWITCH ESL credentials (`FS_HOST`, `FS_ESL_PORT`, `FS_ESL_PASSWORD`).
+Once ESL app is started, it would originate a call to `SIP_ENDPOINT` and start AVMD. You'll see beep detection in the logs.
+You can also change the call logic — there is a method to call a local extension, and you can bridge it with a call to `SIP_ENDPOINT` to hear everything. Feel free to play around!
 
-That's it — now you can run the script: `python app.py`.
-
-## Speech recognition
-
-If you're using Vosk Websocket server as the WS endpoint and have logging enabled, you'll see speech recognition results in your log.
