@@ -169,6 +169,7 @@ def main():
         sys.exit(1)
 
     originate_call_to_sip_uri(esl_conn, config.get('SIP_ENDPOINT'))
+    # originate_call_to_extension(esl_conn, config.get('EXTENSION_TO_CALL'))
 
     esl_conn.events("plain", "ALL")
     while True:
